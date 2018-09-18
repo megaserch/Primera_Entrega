@@ -1,3 +1,7 @@
+/**********************************/
+/*******SECCION DEFINICIONES*******/
+/**********************************/
+
 %{
 #include <stdio.h>
 #include <stdlib.h>
@@ -5,60 +9,151 @@
 #include "y.tab.h"
 int yystopparser=0;
 FILE  *yyin;
-
 %}
 
-%union {
-int intval;
-double val;
-char *str_val;
-}
+/**********************************/
+/**********SECCION TOKENS**********/
+/**********************************/
 
-%token <str_val>ID
-%token <int>ENTERO
-%token <double>FLOAT
-%token <str_val>STRING
 
-%token OP_SUMA OP_RESTA OP_MUL OP_DIV ASIG P_A P_C PUNTO_Y_COMA 
+%token VAR
+%token ENTERO
+%token FLOAT
+%token STRING
+%token OP_ASIG
+
+%token PR_INICIO
+%token PR_FIN
+%token PR_DECVAR
+%token PR_ENDDEC
+%token CONST_INT
+%token CONST_REAL
+%token CONST_STR
+%token IF
+%token ELSE
+%token WHILE
+%token BETWEEN
+%token OP_SUMA
+%token OP_RESTA
+%token OP_MULT
+%token OP_DIV
+%token READ
+%token WRITE
+%token PR_PYC
+%token PR_COMA
+%token PR_NOT
+%token PR_AND
+%token PR_OR
+%token PR_AP
+%token PR_CP
+%token PR_AC
+%token PR_CC
+%token PR_ALL
+%token PR_CLL
+%token OP_MAYOR
+%token OP_MENOR
+%token OP_IGUAL
+%token OP_DISTINTO
+%token OP_MAYORIGUAL
+%token OP_MENORIGUAL
+
+
+/**********************************/
+/***SECCION DEFINICION DE REGLAS***/
+/**********************************/
 
 %%
-programa : program {printf("Compilación OK\n");}
-program:
-	sentencia 
-	| program sentencia 
-	;
-sentencia: asignacion 
-	;
+programa:  	   
+	PR_INICIO {printf(" Inicia COMPILADOR\n");} declaracion sentencia {printf(" Fin COMPILADOR ok\n");} PR_FIN{printf(" salio\n");};
 
-asignacion : ID ASIG asignacion { printf("asignacion\n"); }|
-ID ASIG exp PUNTO_Y_COMA { printf("asignacion\n "); }
-;
+programa:  	   
+	PR_INICIO {printf(" Inicia COMPILADOR\n");} sentencia {printf(" Fin COMPILADOR ok\n");} PR_FIN;
 
-		
-exp:
-	term {printf("regla exp es termino\n "); }
-	|exp OP_SUMA term { printf("regla exp es suma\n ");}
-	| exp OP_RESTA term 
+declaracion:
+	PR_DECVAR {printf("DECLARACIONES\n");} linea_dec {printf(" Fin de las Declaraciones\n");} PR_ENDDEC;
 
-	;
-term:	
-	term OP_MUL factor 
-	|term OP_DIV factor 
-	| factor { printf("regla termino es factor\n ");}
-	;
+linea_dec:
+	linea_dec dec | dec;
+
+dec:  
+	FLOAT lista_var | STRING lista_var | ENTERO lista_var;
+
+sentencia:
+	sentencia sent	
+
+sentencia:
+	sent
+
+sent:	iteracion | decision | asig | entrada | salida;
+
+iteracion:
+	WHILE PR_AP condicion PR_CP PR_ALL sentencia PR_CLL;
+
+decision:
+	IF PR_AP condicion PR_CP PR_ALL sentencia PR_CLL ELSE PR_ALL sentencia PR_CLL;
+decision:
+	IF PR_AP condicion PR_CP PR_ALL sentencia PR_CLL;
+
+asig:
+	lista_var OP_ASIG expresion {printf(" entro en asig exp\n");};
+lista_var:
+	lista_var OP_ASIG VAR;
+lista_var:
+	VAR;
+
+entrada:
+	READ VAR;
+
+salida:
+	WRITE VAR;
+
+salida:
+	WRITE constante;
+
+condicion:
+	cond_simple;
+condicion:
+	entre;
+condicion:
+	cond_mult;
+cond_mult:
+	cond_simple nexo cond_simple;
+cond_mult:
+	PR_NOT cond_simple;
+cond_simple:
+	expresion comparador expresion;
+comparador:
+	OP_MAYOR | OP_MENOR | OP_IGUAL | OP_DISTINTO | OP_MAYORIGUAL | OP_MENORIGUAL;
+nexo:
+	PR_AND | PR_OR
+
+expresion:
+	expresion OP_SUMA termino;
+expresion:
+	expresion OP_RESTA termino;
+expresion:
+	termino;
+termino:
+	termino OP_MULT factor;
+termino:
+	termino OP_DIV factor;
+termino:
+	factor;
+
 factor:
-	
-	ID {printf( "En regla factor es ID, yylval: %s\n", yylval.str_val);}
+	VAR | constante | PR_AP expresion PR_CP;
+constante:
+	CONST_STR | CONST_INT | CONST_REAL;
 
-	|ENTERO {printf( "En regla factor es ENTERO, $1: %d\n", $<intval>1);}
+entre:
+	BETWEEN PR_AP VAR PR_COMA PR_AC expresion PR_PYC expresion PR_CC PR_CP;
 
-	|FLOAT {$<val>$ = $<val>1; printf( "En regla factor es FLOAT, $$: %f\n", $<val>$);printf( "En regla factor es FLOAT, $1: %f\n", $<val>1);}
-
-	|STRING {$<str_val>$ = $<str_val>1; printf( "En regla factor es STRING, $$: %s\n", $<val>$); printf( "En regla factor es STRING, $1: %s\n", $<str_val>1);}
-
-	|P_A exp P_C 
-	;
 %%
+
+/**********************************/
+/**********SECCION CODIGO**********/
+/**********************************/
+
 int main(int argc,char *argv[])
 {
   if ((yyin = fopen(argv[1], "rt")) == NULL)
@@ -78,8 +173,4 @@ int yyerror(void)
 	 system ("Pause");
 	 exit (1);
      }
-
-
-
-
 
