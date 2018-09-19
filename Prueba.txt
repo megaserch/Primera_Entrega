@@ -1,4 +1,8 @@
+decvar
+a : int
+enddec
+-/c-/o-/m-/e/-n/-t/-ario/-
 main
 a:=b:=10
-if (between(a,[25;35])){b:=0}
+if (between(a,[25+4;35]) && a<b){b:=0}
 end

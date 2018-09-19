@@ -1,0 +1,8 @@
+POSICION 		 NOMBRE 		 TIPO 		 VALOR 		 LONGITUD 
+0 				 a 			ID 			--- 			1 
+1 				 b 			ID 			--- 			1 
+2 				 10 			CONST_INT 			10 			2 
+3 				 25 			CONST_INT 			25 			2 
+4 				 4 			CONST_INT 			4 			1 
+5 				 35 			CONST_INT 			35 			2 
+6 				 0 			CONST_INT 			0 			1 
