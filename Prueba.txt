@@ -1,8 +1,22 @@
-decvar
-a : int
-enddec
--/c-/o-/m-/e/-n/-t/-ario/-
-main
-a:=b:=10
-if (between(a,[25+4;35]) && a<b){b:=0}
-end
+decvar									-/Declaracion de variables/-
+a,b:int									-/Probando declaraciones multiples/-
+c,d1:str								-/de distintos tipos/-
+e1,f_2,g3:flot							-/y de mas de 2 variables/-
+h,a:str									-/Cuando se declara una variable ya declarada se toma la primera declaracion/-
+enddec									-/Fin de declaracion de variables/-
+main									-/Esta es la prueba de comentario -/anidado/- una en un unico nivel /-
+a:=b:=10								-/Asignacion multiple - TEMA especial 4/-
+c:="123456789012345678901234567890"		-/Asignacion de un string de 30 caracteres/-
+h:="d-e*(a)"							-/Asignacion de un string de con caracteres especiales/-
+if(between(a,[25+4;35])&&a<b)			-/Decisiones -/BETWEEN - TEMA especial 1/- Condiciones (and)/-
+{b:=0}									-/Asignacion simple/-
+while(e1<1.6)							-/Iteracion/-
+{read h}								-/Lectura/-
+if (a>10||g3<3.5)						-/Decisiones con else/-
+{
+if (a>15&&f_2>333.02)					-/Decisiones Anidada dentro del if antes del else/-
+	{write c}							-/Escritura de variable/-
+}
+else									-/El else/-
+	{write "texto"}						-/Escritura de constante/-
+end										-/Fin de compilacion/-

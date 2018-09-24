@@ -21,28 +21,9 @@ char valor[100];
 int longitud;
 
 } TS_reg;
- TS_reg tabla_simb[100];
-FILE* pf_intermedio;
-
-char listaDeTipos[][100]={"."};
-char listaDeIDs[][100]={"."};
-
-int cantidadTipos=0;              
-int cantidadIDs=0;     
+ TS_reg tabla_simbolos[100];
 char* yytext;
 
-
-
-
-
-
-int grabar_archivo();
-void agregarTipo(char * );
-void agregarIDs(char * );
-
-
-
-void printfTabla(TS_reg); 
 
 %}
 
@@ -62,7 +43,7 @@ void printfTabla(TS_reg);
 %token PR_DECVAR
 %token PR_ENDDEC
 %token CONST_INT
-%token CONST_REAL
+%token CONST_FLOT
 %token CONST_STR
 %token IF
 %token ELSE
@@ -103,16 +84,22 @@ programa:
 	declaracion programa;
 
 programa:  	   
-	PR_INICIO {printf(" Inicia COMPILADOR\n");grabar_archivo();} sentencia {printf(" Fin COMPILADOR ok\n");} PR_FIN;
+	PR_INICIO {printf(" Inicia COMPILADOR\n");} sentencia {printf(" Fin COMPILADOR - OK\n");} PR_FIN;
 
 declaracion:
-	PR_DECVAR {printf("DECLARACIONES\n");} linea_dec {printf(" Fin de las Declaraciones\n");} PR_ENDDEC;
+	PR_DECVAR {printf(" Inicia declaraciones\n");} linea_dec {printf(" Fin de las Declaraciones\n");} PR_ENDDEC;
 
 linea_dec:
 	linea_dec dec | dec;
 
-dec:  
-	VAR PR_DOSP tipo;
+dec:
+	lista_def PR_DOSP tipo;
+
+lista_def:
+	lista_def PR_COMA VAR;
+lista_def:
+	VAR;
+
 
 sentencia:
 	sentencia sent;	
@@ -123,7 +110,7 @@ sentencia:
 sent:	iteracion | decision | asig | entrada | salida;
 
 iteracion:
-	WHILE PR_AP condicion PR_CP PR_ALL sentencia PR_CLL;
+	WHILE {printf(" Inicia WHILE\n");} PR_AP condicion PR_CP PR_ALL sentencia PR_CLL;
 
 decision:
 	IF PR_AP condicion PR_CP PR_ALL sentencia PR_CLL ELSE PR_ALL sentencia PR_CLL;
@@ -131,20 +118,20 @@ decision:
 	IF PR_AP condicion PR_CP PR_ALL sentencia PR_CLL;
 
 asig:
-	lista_var OP_ASIG expresion {printf(" entro en asig exp\n");};
+	lista_var OP_ASIG expresion {printf(" Inicia asignacion\n");};
 lista_var:
 	lista_var OP_ASIG VAR;
 lista_var:
 	VAR;
 
 entrada:
-	READ VAR;
+	READ {printf(" Inicia READ\n");} VAR;
 
 salida:
-	WRITE VAR;
+	WRITE {printf(" Inicia WRITE de variable\n");} VAR;
 
 salida:
-	WRITE constante;
+	WRITE {printf(" Inicia WRITE de constante\n");} constante;
 
 tipo:
 	ENTERO | STRING | FLOAT 
@@ -167,25 +154,25 @@ nexo:
 	PR_AND | PR_OR
 
 expresion:
-	expresion OP_SUMA termino;
+	expresion OP_SUMA {printf(" Realiza SUMA\n");} termino;
 expresion:
-	expresion OP_RESTA termino;
+	expresion OP_RESTA {printf(" Realiza Resta\n");} termino;
 expresion:
 	termino;
 termino:
-	termino OP_MULT factor;
+	termino OP_MULT {printf(" Realiza Multiplacion\n");} factor;
 termino:
-	termino OP_DIV factor;
+	termino OP_DIV {printf(" Realiza Division\n");} factor;
 termino:
 	factor;
 
 factor:
 	VAR | constante | PR_AP expresion PR_CP;
 constante:
-	CONST_STR | CONST_INT | CONST_REAL;
+	CONST_STR | CONST_INT | CONST_FLOT;
 
 entre:
-	BETWEEN PR_AP VAR PR_COMA PR_AC expresion PR_PYC expresion PR_CC PR_CP;
+	BETWEEN {printf(" Inicia BETWEEN\n");} PR_AP VAR PR_COMA PR_AC expresion PR_PYC expresion PR_CC PR_CP;
 
 %%
 
@@ -212,61 +199,3 @@ int yyerror(char const *line)
 	printf("Syntax Error\n");   
 	exit (1);
 }
-/**********************TIPO y IDS***************************/
-void agregarTipo(char * tipo)
-{
-	strcpy(listaDeTipos[cantidadTipos],tipo);
-	cantidadTipos++;
-}
-
-void agregarIDs(char * id)
-{
-	strcpy(listaDeIDs[cantidadIDs],id);
-	cantidadIDs++;
-	printf("IDDDDDDDDDDDDDDDD %s %d\n",listaDeIDs[cantidadIDs], cantidadIDs);
-}
-/******************************************************/
-
-
-/*******************Escribir arhivo**********************/
-
-
-
-
-
-void printfTabla(TS_reg linea_tabla)
-{
-	printf("pos:%d nom:%s tipo:%s val:%s long:%d \n",linea_tabla.posicion,linea_tabla.nombre,linea_tabla.tipo,linea_tabla.valor,linea_tabla.longitud);
-}
-
-int grabar_archivo()
-{
-     int i;
-     char* TS_file = "intermedia.txt";
-     
-     if((pf_intermedio = fopen(TS_file, "w")) == NULL)
-     {
-               printf("Error al grabar el archivo de intermedio \n");
-               exit(1);
-     }
-     
-     fprintf(pf_intermedio, "Codigo Intermedio \n");
-     
-    /*  for(i = 0; i < cant_entradas; i++)
-      {
-           fprintf(pf_TS,"%d \t\t\t\t %s \t\t\t", tabla_simb[i].posicion, tabla_simb[i].nombre);
-           
-          
-            if(tabla_simb[i].tipo != NULL)
-               fprintf(pf_TS,"%s \t\t\t", tabla_simb[i].tipo);
-           
-          
-            if(tabla_simb[i].valor != NULL)
-               fprintf(pf_TS,"%s \t\t\t", tabla_simb[i].valor);
-           
-            fprintf(pf_TS,"%d \n", tabla_simb[i].longitud);
-      }*/    
-     fclose(pf_intermedio);
-} 
-
-
