@@ -10,8 +10,6 @@
 #include "y.tab.h"
 
 FILE  *yyin;
-int yylval;
-float yyfval;
 
 typedef struct	{
 				int posicion;
@@ -59,18 +57,23 @@ COMENTARIO_DOBLE	"-/"({LETRA}|{DIGITO}|{CARACTER}|{COMENTARIO_SIMPLE})*"/-"
 					if(!validar_cota_int())
 						yyterminate();
 					inserta_en_TS("CONST_INT",yytext); 
+					/*yylval = atoi(yytext);*/
+					yylval.num = atoi(yytext);
 					return CONST_INT;
 					} 
 {CONST_STR}			{ 
 					if(!validar_long_string(yytext))
 						yyterminate(); 
 					inserta_en_TS("CONST_STR",yytext); 
+					yylval.str = strdup(yytext);
 					return CONST_STR;
 					}
 {CONST_FLOT}		{ 
 					if(!validar_cota_flot())
 						yyterminate(); 
 					inserta_en_TS("CONST_FLOT",yytext); 
+					/*yylval = atof(yytext);*/
+					yylval.flot = atof(yytext);
 					return CONST_FLOT;
 					} 
 "flot"				{ return FLOAT;}        
@@ -88,7 +91,16 @@ COMENTARIO_DOBLE	"-/"({LETRA}|{DIGITO}|{CARACTER}|{COMENTARIO_SIMPLE})*"/-"
 "read"				{ return READ;}         
 "write"				{ return WRITE;}        
 {VAR}				{
-					inserta_en_TS("ID\t","---"); 
+					inserta_en_TS("VAR","---");
+					/*printf("\n\n retornando lexema %s del token VAR\n\n",yytext); */
+					/*yylval=yytext;*/
+					yylval.str = strdup(yytext);
+
+					/*p=(char *)calloc(strlen(yytext)+1,sizeof(char));
+                       strcpy(p,yytext);
+                       yylval.text=p;
+                       return(t_MONTH);*/
+
 					return VAR;
 					}
 ";"					{ return PR_PYC;}       
@@ -141,6 +153,7 @@ int  validar_cota_int()
 		printf("SINTAX ERROR: INT OVERFLOW\n");		
 		return 0;
 	}
+	/*printf("\n\nLEXICO - yylval= - yytext=%d\n\n",yytext);*/
 	return 1;
 }
 
@@ -161,6 +174,7 @@ if(*p != '\0')
 		printf("SINTAX ERROR: STRING EXCEDE MAXIMO DE 30 CARACTERES (%s)\n", texto);    
 		return 0;
 	}
+	printf("texto\n%s\n\n",yytext);
 return 1;
 }
 
@@ -172,6 +186,7 @@ int validar_cota_flot()
 		printf("SINTAX ERROR: FLOT OVERFLOW\n");		
 		return 0;
 	}
+	/*printf("\n\nLEXICO - yylval=%d - yytext=%d\n\n",yylval,yytext);*/
 	return 1;
 } 
 
@@ -192,23 +207,25 @@ int busca_en_TS(char* nombre)
 
 int inserta_en_TS(char* tipo,char* valor)
 {
-	 if((yylval = busca_en_TS(yytext)) == -1)
+	 if((yylval.num = busca_en_TS(yytext)) == -1)
      {
 		TS_reg reg;
 		strcpy(reg.nombre, yytext);
+		printf("VALOR INICIAL %s\n",tipo);
 		strcpy(reg.tipo, tipo);
+		printf("VALOR GRABADO %s\n",reg.tipo);
 		strcpy(reg.valor, valor);
 		reg.longitud = strlen(yytext);
 		reg.posicion = cant_simbolos;
 		tabla_simbolos[cant_simbolos++] = reg;
-		return yylval = cant_simbolos-1;
+		return yylval.num = cant_simbolos-1;
 	 }
-	 return yylval;
+	 return yylval.num;
 }
 
 int graba_TS()
 {
-     int i;
+     int i,a;
      char* TS_file = "ts.txt";
      if((pf_TS = fopen(TS_file, "w")) == NULL)
      {
@@ -220,9 +237,13 @@ int graba_TS()
       {
         fprintf(pf_TS,"%d\t\t\t%s\t\t\t\t\t", tabla_simbolos[i].posicion, tabla_simbolos[i].nombre);
         if(tabla_simbolos[i].tipo != NULL)
-			fprintf(pf_TS,"%s\t\t", tabla_simbolos[i].tipo);
+        {
+        	for(a=0;a<strlen(tabla_simbolos[i].tipo);a++)
+        		printf("VALOR A GRABAR EN ARCHIVO %c\n",tabla_simbolos[i].tipo[a]);
+			fprintf(pf_TS,"%s \t\t", tabla_simbolos[i].tipo);
+		}
         if(tabla_simbolos[i].valor != NULL)
-            fprintf(pf_TS,"%s\t\t", tabla_simbolos[i].valor);
+            fprintf(pf_TS,"%s \t\t", tabla_simbolos[i].valor);
         fprintf(pf_TS,"%d\n", tabla_simbolos[i].longitud);
       }
       fclose(pf_TS);
