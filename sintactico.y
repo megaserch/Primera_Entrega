@@ -35,15 +35,17 @@ struct lifo
 {
 	int elm; /*variable que coniene el elmento de tipo entero*/
 	char tipo_salto[3];
+	int tipo_de_nexo;
 	struct lifo *nxt; /*nodo que apunta al siguiente en la pila*/
 };
 
 typedef struct lifo *pila; 
 pila crearpila();
-pila push(pila p,int elm,char* tipo_cmp);
+pila push(pila p,int elm,char* tipo_cmp,int t_nexo);
 pila pop(pila p);
 int peek(pila p);
 pila invertir(pila p);
+void cargar_nexo(pila p,int t_nexo);
 
 
 pila pila_dec;
@@ -229,9 +231,10 @@ dec:
 
 
 lista_def:
-	lista_def PR_COMA VAR{	pila_dec=push(pila_dec,busca_en_TS($3),"_");	};
+	lista_def PR_COMA VAR{	pila_dec=push(pila_dec,busca_en_TS($3),"_",0);	};
+
 lista_def:
-	VAR {	pila_dec=push(pila_dec,busca_en_TS($1),"_");	};
+	VAR {	pila_dec=push(pila_dec,busca_en_TS($1),"_",0);	};
 
 sentencia:
 	sentencia sent;	
@@ -315,7 +318,12 @@ condicion:
 condicion:
 	cond_mult;
 cond_mult:
-	cond_simple nexo cond_simple {Condicion_ind=crear_terceto(TERCETO_IF_COMPLETA,Comparador_ind,$3,"_","_");};
+	cond_simple PR_AND cond_simple {cargar_nexo(pila_tercetos,1);}
+	/*{Condicion_ind=crear_terceto(TERCETO_IF_COMPLETA,Comparador_ind,$3,"_","_");};*/
+
+cond_mult:
+	cond_simple PR_OR cond_simple {Condicion_ind=crear_terceto(TERCETO_IF_COMPLETA,Comparador_ind,$3,"_","_");};
+
 cond_mult:
 	PR_NOT cond_simple{$$=$2;};
 cond_simple:
@@ -340,8 +348,8 @@ comparador:
 comparador:	
 	OP_MENORIGUAL {strcpy(Comparador_id,"JG");};
 
-nexo:
-	PR_AND | PR_OR
+/*nexo:
+	PR_AND | PR_OR*/
 
 expresion_izq:
 	expresion {Expresion_izq_ind=Expresion_ind;};
@@ -351,41 +359,28 @@ expresion_der:
 
 expresion:
 	expresion OP_SUMA termino
-						{
-						Expresion_ind=crear_terceto(TERCETO_CON_TERCETOS,Expresion_ind,"+",(char*)Expresion_ind,(char*)Termino_ind);
-						} 
+						{Expresion_ind=crear_terceto(TERCETO_CON_TERCETOS,Expresion_ind,"+",(char*)Expresion_ind,(char*)Termino_ind);} 
 expresion:
 	expresion OP_RESTA termino
-						{
-						Expresion_ind=crear_terceto(TERCETO_CON_TERCETOS,Expresion_ind,"-",(char*)Expresion_ind,(char*)Termino_ind);
-						}
+						{Expresion_ind=crear_terceto(TERCETO_CON_TERCETOS,Expresion_ind,"-",(char*)Expresion_ind,(char*)Termino_ind);}
 expresion:
 	termino{Expresion_ind=Termino_ind;};
 
 termino:
 	termino OP_MULT factor
-					{
-					Termino_ind=crear_terceto(TERCETO_CON_TERCETOS,Termino_ind,"*",(char*)Termino_ind,(char*)Factor_ind);
-					}
+					{Termino_ind=crear_terceto(TERCETO_CON_TERCETOS,Termino_ind,"*",(char*)Termino_ind,(char*)Factor_ind);}
 termino:
 	termino OP_DIV factor
-					{
-					Termino_ind=crear_terceto(TERCETO_CON_TERCETOS,Termino_ind,"/",(char*)Termino_ind,(char*)Factor_ind);
-					}
+					{Termino_ind=crear_terceto(TERCETO_CON_TERCETOS,Termino_ind,"/",(char*)Termino_ind,(char*)Factor_ind);}
 termino:
 	factor{		Termino_ind=Factor_ind;	};
 
 factor:
-	VAR     	{
-				Factor_ind=crear_terceto(TERCETO_SIMPLE_VARIABLE,Factor_ind,$1,"_","_");
-				}
+	VAR     	{Factor_ind=crear_terceto(TERCETO_SIMPLE_VARIABLE,Factor_ind,$1,"_","_");}
 factor:
-	constante	{
-				Factor_ind=crear_terceto(TERCETO_SIMPLE_CONSTANTE,Factor_ind,$1,"_","_");
-				};
+	constante	{Factor_ind=crear_terceto(TERCETO_SIMPLE_CONSTANTE,Factor_ind,$1,"_","_");};
 factor:	
-	PR_AP expresion PR_CP {	$$=$2;
-							Factor_ind=Expresion_ind;};
+	PR_AP expresion PR_CP {	$$=$2;	Factor_ind=Expresion_ind;};
 	
 constante:
 	CONST_STR	{$$ = $1;}
@@ -507,27 +502,66 @@ case TERCETO_CONSTANTE_TERCETO:
 	break;
 case TERCETO_IF_RESERVA:
 printf("valor del argumento %s\n",a);
-	pila_tercetos=push(pila_tercetos,Pos_indice-1,a);
-	printf("guardando if\n");
+	pila_tercetos=push(pila_tercetos,Pos_indice-1,a,0);
+	printf("guardando if de terceto %d\n",Pos_indice);
 	break;
 case TERCETO_ELSE_RESERVA:
 printf("valor del argumento %s\n",a);
-	pila_tercetos=push(pila_tercetos,Pos_indice-1,a);
+	pila_tercetos=push(pila_tercetos,Pos_indice-1,a,0);
 	printf("guardando else\n");
 	break;
 case TERCETO_ELSE_COMPLETA:
-	terceto_a_agregar->numero_de_terceto=pila_tercetos->elm+1;
-	sprintf(terceto_a_agregar->cad, "[%d] (%s,%d,_)\n",pila_tercetos->elm+1,pila_tercetos->tipo_salto,Pos_indice+1);
-	insertar_terc(terceto_a_agregar);
-	pila_tercetos=pop(pila_tercetos);
-	Pos_indice--;
+	if (pila_tercetos->tipo_de_nexo==0)
+		{
+		terceto_a_agregar->numero_de_terceto=pila_tercetos->elm+1;
+		sprintf(terceto_a_agregar->cad, "[%d] (%s,%d,_)\n",pila_tercetos->elm+1,pila_tercetos->tipo_salto,Pos_indice+1);
+		insertar_terc(terceto_a_agregar);
+		printf("desapilando else de terceto %d\n",pila_tercetos->elm+1);
+		pila_tercetos=pop(pila_tercetos);
+		Pos_indice--;
+		}
+	else
+		{
+		terceto_a_agregar->numero_de_terceto=pila_tercetos->elm+1;
+		sprintf(terceto_a_agregar->cad, "[%d] (%s,%d,_)\n",pila_tercetos->elm+1,pila_tercetos->tipo_salto,Pos_indice+1);
+		insertar_terc(terceto_a_agregar);
+		printf("desapilando else de terceto %d\n",pila_tercetos->elm+1);
+		pila_tercetos=pop(pila_tercetos);
+
+		terceto_a_agregar->numero_de_terceto=pila_tercetos->elm+1;
+		sprintf(terceto_a_agregar->cad, "[%d] (%s,%d,_)\n",pila_tercetos->elm+1,pila_tercetos->tipo_salto,Pos_indice+1);
+		insertar_terc(terceto_a_agregar);
+		printf("desapilando else de terceto %d\n",pila_tercetos->elm+1);
+		pila_tercetos=pop(pila_tercetos);
+		Pos_indice--;
+		}
 	break;
 case TERCETO_IF_COMPLETA:
-	terceto_a_agregar->numero_de_terceto=pila_tercetos->elm+1;
-	sprintf(terceto_a_agregar->cad, "[%d] (%s,%d,_)\n",pila_tercetos->elm+1,pila_tercetos->tipo_salto,Pos_indice);
-	insertar_terc(terceto_a_agregar);
-	pila_tercetos=pop(pila_tercetos);
-	Pos_indice--;
+	if (pila_tercetos->tipo_de_nexo==0)
+		{
+		terceto_a_agregar->numero_de_terceto=pila_tercetos->elm+1;
+		sprintf(terceto_a_agregar->cad, "[%d] (%s,%d,_)\n",pila_tercetos->elm+1,pila_tercetos->tipo_salto,Pos_indice);
+		insertar_terc(terceto_a_agregar);
+		printf("desapilando if de terceto %d\n",pila_tercetos->elm+1);
+		pila_tercetos=pop(pila_tercetos);
+		Pos_indice--;
+		}
+	else
+		if (pila_tercetos->tipo_de_nexo==1)
+		{
+		terceto_a_agregar->numero_de_terceto=pila_tercetos->elm+1;
+		sprintf(terceto_a_agregar->cad, "[%d] (%s,%d,_)\n",pila_tercetos->elm+1,pila_tercetos->tipo_salto,Pos_indice);
+		insertar_terc(terceto_a_agregar);
+		printf("desapilando if de terceto %d\n",pila_tercetos->elm+1);
+		pila_tercetos=pop(pila_tercetos);
+
+		terceto_a_agregar->numero_de_terceto=pila_tercetos->elm+1;
+		sprintf(terceto_a_agregar->cad, "[%d] (%s,%d,_)\n",pila_tercetos->elm+1,pila_tercetos->tipo_salto,Pos_indice);
+		insertar_terc(terceto_a_agregar);
+		printf("desapilando if de terceto %d\n",pila_tercetos->elm+1);
+		pila_tercetos=pop(pila_tercetos);
+		Pos_indice--;
+		}
 	break;
 }
 Pos_indice++;
@@ -548,12 +582,13 @@ pila crearpila(){
 }
 
 
-pila push(pila p,int elm,char*tipo_cmp){
+pila push(pila p,int elm,char*tipo_cmp,int t_nexo){
 	pila tmp;
 	/*printf("valor del argumento adentro %s\n",tipo_cmp);*/
 	tmp = (pila)malloc(sizeof(struct lifo));
 	tmp->elm=elm;
 	strcpy(tmp->tipo_salto,tipo_cmp);
+	tmp->tipo_de_nexo=t_nexo;
 	tmp->nxt=p;
 	return tmp;
 }
@@ -572,13 +607,17 @@ int peek(pila p){
 	return p->elm;
 }
 
+void cargar_nexo(pila p,int t_nexo){
+	p->tipo_de_nexo=t_nexo;
+}
+
 
 pila invertir(pila p){
 	pila tmp,tmpp;
 	tmp=p;
 	tmpp=crearpila();
 	while(tmp!=NULL){
-		tmpp=push(tmp,peek(p),"_");
+		tmpp=push(tmp,peek(p),"_",0);
 		tmp=pop(tmp);
 	}
 	return tmpp;
