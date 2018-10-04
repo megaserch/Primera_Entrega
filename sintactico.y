@@ -28,6 +28,47 @@ int longitud;
 } TS_reg;
  TS_reg tabla_simbolos[100];
 
+/**********************************/
+/******pilas***********************/
+/**********************************/
+struct lifo
+{
+	int elm; /*variable que coniene el elmento de tipo entero*/
+	char tipo_salto[3];
+	struct lifo *nxt; /*nodo que apunta al siguiente en la pila*/
+};
+
+typedef struct lifo *pila; 
+pila crearpila();
+pila push(pila p,int elm,char* tipo_cmp);
+pila pop(pila p);
+int peek(pila p);
+pila invertir(pila p);
+
+
+pila pila_dec;
+pila pila_tercetos;
+
+/*listas*/
+struct lista_tercetos
+{
+    int numero_de_terceto;
+    char a[20];
+    char b[20];
+    char c[20];
+    char cad[200];
+    struct lista_tercetos *sig;
+};
+
+typedef struct lista_tercetos *l_tercetos;
+
+void liberar(void);
+int vacia(void);
+void imprimir(void);
+void insertar(int x);
+void insertar_terc(l_tercetos x);
+
+l_tercetos terceto_ordenados;
  
 /**********************************/
 /*******VARIABLES INTERMEDIA*******/
@@ -51,6 +92,11 @@ int longitud;
 #define TERCETO_BETWEEN_COMPLETA 13
 #define TERCETO_ASIG_RESERVA 14
 #define TERCETO_ASIG_COMPLETA 15
+#define TERCETO_READ 16
+#define TERCETO_WRITE_CTE 17
+#define TERCETO_WRITE_VAR 18
+#define TERCETO_ELSE_RESERVA 19
+#define TERCETO_ELSE_COMPLETA 20
 
 
 int Pos_indice=0;
@@ -71,9 +117,9 @@ int Expresion_der_ind=0;
 int const_entera;
 int const_entera1;
 int crear_terceto(int,int,char*,char*,char*);
-void modificar_tipo(int,char*);
 
-char* Comparador_id[3];
+
+char Comparador_id[3];
 
 int pila_de_if=0;
 int tipo_procesando=0;
@@ -146,7 +192,8 @@ int tipo_procesando=0;
 %type <str> condicion
 %type <str> sentencia
 %type <str> entre
-%type <str> tipo
+%type <str> cuerpo_if
+/*%type <str> tipo*/
 %type <str> dec
 %type <str> lista_def
 %type <str> cond_simple
@@ -164,47 +211,27 @@ programa:
 	declaracion programa;
 
 programa:  	   
-	PR_INICIO {printf(" Inicia COMPILADOR\n");	} sentencia {	printf(" Fin COMPILADOR - OK\n");}	PR_FIN;
+	PR_INICIO {printf(" Inicia COMPILADOR\n");	} sentencia {	imprimir(); printf(" Fin COMPILADOR - OK\n");}	PR_FIN;
 
 declaracion:
-	PR_DECVAR {printf(" Inicia declaraciones\n");} linea_dec {printf(" Fin de las Declaraciones\n");} PR_ENDDEC;
+	PR_DECVAR {printf(" Inicia declaraciones\n");} linea_dec {	printf(" Fin de las Declaraciones\n");
+																while (pila_dec!=NULL)	{
+																			modifica_TS(tipo_procesando,tabla_simbolos[pila_dec->elm].nombre);
+																			pila_dec=pop(pila_dec);		}
+																			} PR_ENDDEC;
 
 linea_dec:
 	linea_dec dec
 	| dec;
 
 dec:
-	lista_def PR_DOSP tipo {
-							if (tipo_procesando==1)
-							printf("procesando INT\n\n");
-							if (tipo_procesando==2)
-							printf("procesando FLOAT\n\n");
-							if (tipo_procesando==3)
-							printf("procesando STRING\n\n");
+	lista_def PR_DOSP tipo
 
-							};
+
 lista_def:
-	lista_def PR_COMA VAR{
-						/*printf("variable a procesar lista_def=lista_def PR_COMA VAR: %s\n",$3);*/
-						modificar_tipo(tipo_procesando,$3);
-						};
+	lista_def PR_COMA VAR{	pila_dec=push(pila_dec,busca_en_TS($3),"_");	};
 lista_def:
-	VAR {
-		/*int a;
-		printf("variable %s esta en %d\n",$1,busca_en_TS($1));
-		printf("variable %s esta en %d\n","pepe",busca_en_TS("pepe"));
-	 	a=busca_en_TS($1);
-	 	if(busca_en_TS($1) != -1)
-     	{
-     		printf("pos: %d - nombre: %s - tipo: %s - valor: %s - longitud: %d\n",tabla_simbolos[a].posicion,tabla_simbolos[a].nombre,
-     				tabla_simbolos[a].tipo,tabla_simbolos[a].valor,tabla_simbolos[a].longitud);
-
-			tabla_simbolos[a].longitud=tipo_de_la_def;
-		};*/
-			/*printf("variable a procesar en lista_dev=var: %s\n",$1);*/
-			modificar_tipo(tipo_procesando,$1);
-	};
-
+	VAR {	pila_dec=push(pila_dec,busca_en_TS($1),"_");	};
 
 sentencia:
 	sentencia sent;	
@@ -222,18 +249,19 @@ iteracion:
 	WHILE PR_AP condicion PR_CP PR_ALL sentencia PR_CLL {printf(" Inicia WHILE\n");}
 
 decision:
-	IF PR_AP condicion PR_CP PR_ALL sentencia PR_CLL{
-		printf(" Inicia if\n");
-		Condicion_ind=crear_terceto(TERCETO_IF_COMPLETA,Comparador_ind,"_","_","_");
-		$$=$3;};
-
-decision:
-	IF PR_AP condicion PR_CP PR_ALL sentencia PR_CLL ELSE PR_ALL sentencia PR_CLL
-	{
-		/*printf(" Inicia if\n");*/
-		/*printf(" %s - %s - %s\n",$3,$6,$10);*/
+	IF PR_AP condicion PR_CP {printf("apilar if\n");} cuerpo_if {
+		printf(" salio del cuerpo del if\n");
+		Condicion_ind=crear_terceto(TERCETO_IF_COMPLETA,Comparador_ind,$3,"_","_");
 		$$=$3;
-	};
+		};
+
+cuerpo_if:
+	PR_ALL sentencia PR_CLL {$$=$2;}
+	|	PR_ALL sentencia PR_CLL ELSE {
+		Condicion_ind=crear_terceto(TERCETO_ELSE_COMPLETA,Comparador_ind,"_","_","_");
+		Condicion_ind=crear_terceto(TERCETO_IF_RESERVA,Comparador_ind,"JMP","_","_");
+		printf("apilar else\n");}
+		PR_ALL sentencia PR_CLL  {	printf("desapilar else\n");$$=$2;}
 
 asig:
 	lista_var OP_ASIG expresion
@@ -251,48 +279,66 @@ lista_var:
 		};
 
 entrada:
-	READ VAR {printf(" Inicia READ\n");} 
+	READ VAR {printf(" Inicia READ\n");
+				crear_terceto(TERCETO_READ,0,$2,"_","_");
+				} 
 
 salida:
-	WRITE VAR {printf(" Inicia WRITE de variable\n");}
+	WRITE VAR {printf(" Inicia WRITE de variable\n");
+			crear_terceto(TERCETO_WRITE_VAR,0,$2,"_","_");
+				}
 
 salida:
-	WRITE constante {printf(" Inicia WRITE de constante\n");} 
+	WRITE constante {printf(" Inicia WRITE de constante\n");
+			crear_terceto(TERCETO_WRITE_CTE,0,$2,"_","_");
+				} 
 
 tipo:
-	ENTERO {tipo_procesando=1;};
-	| STRING {tipo_procesando=3;};
-	| FLOAT {tipo_procesando=2;};
+	ENTERO {tipo_procesando=1;
+			while (pila_dec!=NULL)	{
+				modifica_TS(1,tabla_simbolos[pila_dec->elm].nombre);
+				pila_dec=pop(pila_dec);	}
+			};
+	| STRING {tipo_procesando=3;
+			while (pila_dec!=NULL)	{
+				modifica_TS(3,tabla_simbolos[pila_dec->elm].nombre);
+				pila_dec=pop(pila_dec);	}
+			};
+	| FLOAT {tipo_procesando=2;
+			while (pila_dec!=NULL)	{
+				modifica_TS(2,tabla_simbolos[pila_dec->elm].nombre);
+				pila_dec=pop(pila_dec);	}
+			};
 
 condicion:
 	cond_simple;
 condicion:
 	cond_mult;
 cond_mult:
-	cond_simple nexo cond_simple;
+	cond_simple nexo cond_simple {Condicion_ind=crear_terceto(TERCETO_IF_COMPLETA,Comparador_ind,$3,"_","_");};
 cond_mult:
 	PR_NOT cond_simple{$$=$2;};
 cond_simple:
 	expresion_izq comparador expresion_der
 						{
-							Condicion_ind=crear_terceto(TERCETO_CON_TERCETOS,Comparador_ind,(char*)Comparador_id,(char*)Expresion_izq_ind,(char*)Expresion_der_ind);
-							Condicion_ind=crear_terceto(TERCETO_IF_RESERVA,Comparador_ind,"_","_","_");
+							Condicion_ind=crear_terceto(TERCETO_CON_TERCETOS,Comparador_ind,"CMP",(char*)Expresion_izq_ind,(char*)Expresion_der_ind);
+							Condicion_ind=crear_terceto(TERCETO_IF_RESERVA,Comparador_ind,Comparador_id,"_","_");
 						}
 cond_simple:
 	entre;
 
 comparador:
-	OP_MAYOR {strcpy((char*)Comparador_id,">");};
+	OP_MAYOR {strcpy(Comparador_id,"JLE");};
 comparador:
-	OP_MENOR {strcpy((char*)Comparador_id,"<");};
+	OP_MENOR {strcpy(Comparador_id,"JGE");};
 comparador:
-	OP_IGUAL {strcpy((char*)Comparador_id,"==");};
+	OP_IGUAL {strcpy(Comparador_id,"JNE");};
 comparador:
-	OP_DISTINTO {strcpy((char*)Comparador_id,"!=");};
+	OP_DISTINTO {strcpy(Comparador_id,"JE");};
 comparador:
-	OP_MAYORIGUAL {strcpy((char*)Comparador_id,">=");};
+	OP_MAYORIGUAL {strcpy(Comparador_id,"JL");};
 comparador:	
-	OP_MENORIGUAL {strcpy((char*)Comparador_id,"<=");};
+	OP_MENORIGUAL {strcpy(Comparador_id,"JG");};
 
 nexo:
 	PR_AND | PR_OR
@@ -360,6 +406,11 @@ entre:
 
 int main(int argc,char *argv[])
 {
+	/*pila_dec = crearpila();*/
+	pila_dec=NULL;
+	pila_tercetos=NULL;
+	terceto_ordenados=NULL;
+
 
   if ((yyin = fopen(argv[1], "rt")) == NULL)
   {
@@ -392,53 +443,91 @@ int graba_intermedia(char* notacion)
      fclose(pf_TS);
 } 
 
+int graba_intermedia_pru(int notacion)
+{
+     int i;
+     char* INTERMEDIA_file = "intermedia.txt";
+     if((pf_TS = fopen(INTERMEDIA_file, "a")) == NULL)
+     {
+        printf("Error al escribir el archivo de la notacion intermedia\n");
+        exit(1);
+     }
+     fprintf(pf_TS, "%5d",notacion);
+     fclose(pf_TS);
+} 
+
 int crear_terceto(int tipo_de_terceto, int ter,char* a,char* b,char* c)
 {
 int a1;
+
+l_tercetos terceto_a_agregar=malloc(sizeof(struct lista_tercetos));
 char cadena[200];
+
 switch (tipo_de_terceto)
 {
 case TERCETO_SIMPLE_VARIABLE:
-	sprintf(cadena, "[%d] (%s,_,_)\n",Pos_indice,a);
-	graba_intermedia(cadena);
+	terceto_a_agregar->numero_de_terceto=Pos_indice;
+	sprintf(terceto_a_agregar->cad, "[%d] (%s,_,_)\n",Pos_indice,a);
+	insertar_terc(terceto_a_agregar);
 	break;
 case TERCETO_SIMPLE_CONSTANTE:
-	sprintf(cadena, "[%d] (%d,_,_)\n",Pos_indice,a);
-	graba_intermedia(cadena);
+	terceto_a_agregar->numero_de_terceto=Pos_indice;
+	sprintf(terceto_a_agregar->cad, "[%d] (%d,_,_)\n",Pos_indice,a);
+	insertar_terc(terceto_a_agregar);
 	break;
 case TERCETO_CON_TERCETOS:
-	sprintf(cadena, "[%d] (%s,[%d],[%d])\n",Pos_indice,a,b,c);
-	graba_intermedia(cadena);
+	terceto_a_agregar->numero_de_terceto=Pos_indice;
+	sprintf(terceto_a_agregar->cad, "[%d] (%s,[%d],[%d])\n",Pos_indice,a,b,c);
+	insertar_terc(terceto_a_agregar);
 	break;
 case TERCETO_TERCETO_VARIABLE:
-	sprintf(cadena, "[%d] (%s,%s,%d)\n",Pos_indice,a,b,c);
-	graba_intermedia(cadena);
+	terceto_a_agregar->numero_de_terceto=Pos_indice;
+	sprintf(terceto_a_agregar->cad, "[%d] (%s,%s,%d)\n",Pos_indice,a,b,c);
+	insertar_terc(terceto_a_agregar);
 	break;
 case TERCETO_TERCETO_CONSTANTE:
-	sprintf(cadena, "[%d] (%s,%s,%s)\n",Pos_indice,a,b,c);
-	graba_intermedia(cadena);
+	terceto_a_agregar->numero_de_terceto=Pos_indice;
+	sprintf(terceto_a_agregar->cad, "[%d] (%s,%s,%s)\n",Pos_indice,a,b,c);
+	insertar_terc(terceto_a_agregar);
 	break;
 case TERCETO_VARIABLE_VARIABLE:
-	sprintf(cadena, "[%d] (%s,%s,%s)\n",Pos_indice,a,b,c);
-	graba_intermedia(cadena);
+	terceto_a_agregar->numero_de_terceto=Pos_indice;
+	sprintf(terceto_a_agregar->cad, "[%d] (%s,%s,%s)\n",Pos_indice,a,b,c);
+	insertar_terc(terceto_a_agregar);
 	break;
 case TERCETO_VARIABLE_TERCETO:
-	sprintf(cadena, "[%d] (%s,%s,%s)\n",Pos_indice,a,b,c);
-	graba_intermedia(cadena);
+	terceto_a_agregar->numero_de_terceto=Pos_indice;
+	sprintf(terceto_a_agregar->cad, "[%d] (%s,%s,%s)\n",Pos_indice,a,b,c);
+	insertar_terc(terceto_a_agregar);
 	break;
 case TERCETO_CONSTANTE_TERCETO:
-	sprintf(cadena, "[%d] (%s,%s,%s)\n",Pos_indice,a,b,c);
-	graba_intermedia(cadena);
+	terceto_a_agregar->numero_de_terceto=Pos_indice;
+	sprintf(terceto_a_agregar->cad, "[%d] (%s,%s,%s)\n",Pos_indice,a,b,c);
+	insertar_terc(terceto_a_agregar);
 	break;
 case TERCETO_IF_RESERVA:
-	pila_de_if=Pos_indice-1;
+printf("valor del argumento %s\n",a);
+	pila_tercetos=push(pila_tercetos,Pos_indice-1,a);
 	printf("guardando if\n");
-	/*graba_intermedia(cadena);*/
+	break;
+case TERCETO_ELSE_RESERVA:
+printf("valor del argumento %s\n",a);
+	pila_tercetos=push(pila_tercetos,Pos_indice-1,a);
+	printf("guardando else\n");
+	break;
+case TERCETO_ELSE_COMPLETA:
+	terceto_a_agregar->numero_de_terceto=pila_tercetos->elm+1;
+	sprintf(terceto_a_agregar->cad, "[%d] (%s,%d,_)\n",pila_tercetos->elm+1,pila_tercetos->tipo_salto,Pos_indice+1);
+	insertar_terc(terceto_a_agregar);
+	pila_tercetos=pop(pila_tercetos);
+	Pos_indice--;
 	break;
 case TERCETO_IF_COMPLETA:
-	sprintf(cadena, "[%d] (BGE,%d,_)\n",pila_de_if+1,Pos_indice);
+	terceto_a_agregar->numero_de_terceto=pila_tercetos->elm+1;
+	sprintf(terceto_a_agregar->cad, "[%d] (%s,%d,_)\n",pila_tercetos->elm+1,pila_tercetos->tipo_salto,Pos_indice);
+	insertar_terc(terceto_a_agregar);
+	pila_tercetos=pop(pila_tercetos);
 	Pos_indice--;
-	graba_intermedia(cadena);
 	break;
 }
 Pos_indice++;
@@ -446,39 +535,170 @@ return Pos_indice-1;
 }
 
 
-void modificar_tipo(int tipo_a_modificar,char*variable_a_modificar)
-{
-
-int ind_tmp,b;
-ind_tmp=busca_en_TS(variable_a_modificar);
-/*printf("variable: %d\n",ind_tmp);*/
-    
-
- if((b = tabla_simbolos[ind_tmp].posicion) != -1)
- 		if (strcmp(tabla_simbolos[ind_tmp].tipo,"VAR"))
- 		{
- 			printf(" %s es variable y tiene tipo %s\n",tabla_simbolos[ind_tmp].nombre,tabla_simbolos[ind_tmp].tipo);
- 			strcpy(tabla_simbolos[ind_tmp].tipo,"VAR_INT");
- 		}
- 		else
-			printf(" %s NO es variable porque tiene tipo %s\n",tabla_simbolos[ind_tmp].nombre,tabla_simbolos[ind_tmp].tipo);
 
 
-/*int inserta_en_TS(char* tipo,char* valor)
-{
-	 if((yylval.num = busca_en_TS(yytext)) == -1)
-     {
-		TS_reg reg;
-		strcpy(reg.nombre, yytext);
-		strcpy(reg.tipo, tipo);
-		strcpy(reg.valor, valor);
-		reg.longitud = strlen(yytext);
-		reg.posicion = cant_simbolos;
-		tabla_simbolos[cant_simbolos++] = reg;
-		return yylval.num = cant_simbolos-1;
-	 }
-*/
+/************pilas********************/
 
 
+
+pila crearpila(){
+	pila p;
+	p=NULL;
+	return p;
 }
 
+
+pila push(pila p,int elm,char*tipo_cmp){
+	pila tmp;
+	/*printf("valor del argumento adentro %s\n",tipo_cmp);*/
+	tmp = (pila)malloc(sizeof(struct lifo));
+	tmp->elm=elm;
+	strcpy(tmp->tipo_salto,tipo_cmp);
+	tmp->nxt=p;
+	return tmp;
+}
+
+
+pila pop(pila p){
+	if (p!=NULL)
+	{
+		p=p->nxt;
+	}
+	return p;
+}
+
+
+int peek(pila p){
+	return p->elm;
+}
+
+
+pila invertir(pila p){
+	pila tmp,tmpp;
+	tmp=p;
+	tmpp=crearpila();
+	while(tmp!=NULL){
+		tmpp=push(tmp,peek(p),"_");
+		tmp=pop(tmp);
+	}
+	return tmpp;
+}
+
+
+void liberar()
+{
+    struct lista_tercetos *reco = terceto_ordenados;
+    struct lista_tercetos *bor;
+    while (reco != NULL)
+    {
+        bor = reco;
+        reco = reco->sig;
+        free(bor);
+    }
+}
+
+int vacia()
+{
+    if (terceto_ordenados == NULL)
+        return 1;
+    else
+        return 0;
+}
+
+
+void imprimir()
+{
+	char cadena[200];	
+    struct lista_tercetos *reco=terceto_ordenados;
+    printf("Lista completa.\n");
+    while (reco!=NULL)
+    {
+        /*printf("%i ",reco->numero_de_terceto);*/
+        /*sprintf(cadena, "[%d] (%s,%s,%s)\n",reco->numero_de_terceto,reco->a,reco->b,reco->c);*/
+        graba_intermedia(reco->cad);
+        reco=reco->sig;
+    }
+    printf("\n");
+}
+
+
+void insertar(int x)
+{
+    struct lista_tercetos *nuevo;
+    nuevo=malloc(sizeof(struct lista_tercetos));
+    nuevo->numero_de_terceto = x;
+    nuevo->sig=NULL;
+    if (terceto_ordenados == NULL)
+    {
+        terceto_ordenados = nuevo;
+    }
+    else
+    {
+        if (x<terceto_ordenados->numero_de_terceto)
+        {
+            nuevo->sig = terceto_ordenados;
+            terceto_ordenados = nuevo;
+        }
+        else
+        {
+            struct lista_tercetos *reco = terceto_ordenados;
+            struct lista_tercetos *atras = terceto_ordenados;
+            while (x >= reco->numero_de_terceto && reco->sig != NULL)
+            {
+                atras = reco;
+                reco = reco->sig;
+            }
+            if (x >= reco->numero_de_terceto)
+            {
+                reco->sig = nuevo;
+            }
+            else
+            {
+                nuevo->sig = reco;
+                atras->sig = nuevo;
+            }
+        }
+    }
+}
+
+
+
+void insertar_terc(l_tercetos x)
+{
+    struct lista_tercetos *nuevo;
+    nuevo=malloc(sizeof(struct lista_tercetos));
+    nuevo->numero_de_terceto = x->numero_de_terceto;
+    strcpy(nuevo->cad,x->cad);
+    nuevo->sig=NULL;
+    if (terceto_ordenados == NULL)
+    {
+        terceto_ordenados = nuevo;
+    }
+    else
+    {
+        if (x->numero_de_terceto<terceto_ordenados->numero_de_terceto)
+        {
+            nuevo->sig = terceto_ordenados;
+            terceto_ordenados = nuevo;
+        }
+        else
+        {
+            struct lista_tercetos *reco = terceto_ordenados;
+            struct lista_tercetos *atras = terceto_ordenados;
+            while (x->numero_de_terceto >= reco->numero_de_terceto && reco->sig != NULL)
+            {
+                atras = reco;
+                reco = reco->sig;
+            }
+            if (x->numero_de_terceto >= reco->numero_de_terceto)
+            {
+                reco->sig = nuevo;
+            }
+            else
+            {
+                nuevo->sig = reco;
+                atras->sig = nuevo;
+            }
+        }
+    }
+}

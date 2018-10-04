@@ -20,6 +20,7 @@ typedef struct	{
 				}	TS_reg;
 
 extern TS_reg tabla_simbolos[100];
+extern int tipo_procesando;
 %}
 
 /**********************************/
@@ -76,11 +77,11 @@ COMENTARIO_DOBLE	"-/"({LETRA}|{DIGITO}|{CARACTER}|{COMENTARIO_SIMPLE})*"/-"
 					yylval.flot = atof(yytext);
 					return CONST_FLOT;
 					} 
-"flot"				{ return FLOAT;}        
-"int"				{ return ENTERO;}      
-"str"				{ return STRING;}       
+"flot"				{ tipo_procesando=2; return FLOAT;}        
+"int"				{ tipo_procesando=1; return ENTERO;}      
+"str"				{ tipo_procesando=3; return STRING;}       
 "if"				{ return IF;}           
-"else"				{ return ELSE;}         
+"else"				{ return ELSE;}  
 "while"				{ return WHILE;}        
 "between"			{ return BETWEEN;}      
 ":="				{ return OP_ASIG;}      
@@ -125,7 +126,8 @@ COMENTARIO_DOBLE	"-/"({LETRA}|{DIGITO}|{CARACTER}|{COMENTARIO_SIMPLE})*"/-"
 {COMENTARIO_DOBLE}	{ /*printf(" Encontre comentario anidado\n");*/}
 
 "\n"      		
-"\t"		
+"\t"
+";"		
 {ESPACIO}		
 
 %%
@@ -140,6 +142,7 @@ FILE* pf_TS;
 int busca_en_TS(char*);
 int graba_TS();
 int inserta_en_TS(char*,char*);
+void modifica_TS(int,char*);
 int validar_cota_int();
 int validar_cota_flot();
 int validar_long_string(char*); 
@@ -211,9 +214,7 @@ int inserta_en_TS(char* tipo,char* valor)
      {
 		TS_reg reg;
 		strcpy(reg.nombre, yytext);
-		printf("VALOR INICIAL %s\n",tipo);
 		strcpy(reg.tipo, tipo);
-		printf("VALOR GRABADO %s\n",reg.tipo);
 		strcpy(reg.valor, valor);
 		reg.longitud = strlen(yytext);
 		reg.posicion = cant_simbolos;
@@ -237,14 +238,46 @@ int graba_TS()
       {
         fprintf(pf_TS,"%d\t\t\t%s\t\t\t\t\t", tabla_simbolos[i].posicion, tabla_simbolos[i].nombre);
         if(tabla_simbolos[i].tipo != NULL)
-        {
-        	for(a=0;a<strlen(tabla_simbolos[i].tipo);a++)
-        		printf("VALOR A GRABAR EN ARCHIVO %c\n",tabla_simbolos[i].tipo[a]);
 			fprintf(pf_TS,"%s \t\t", tabla_simbolos[i].tipo);
-		}
         if(tabla_simbolos[i].valor != NULL)
             fprintf(pf_TS,"%s \t\t", tabla_simbolos[i].valor);
         fprintf(pf_TS,"%d\n", tabla_simbolos[i].longitud);
       }
       fclose(pf_TS);
+
 } 
+
+void modifica_TS(int tipo_a_modificar,char*variable_a_modificar)
+{
+
+int ind_tmp,b;
+ind_tmp=busca_en_TS(variable_a_modificar);
+
+if (tipo_a_modificar==1)
+	{
+	if((b = tabla_simbolos[ind_tmp].posicion) != -1)
+ 		if (!strcmp(tabla_simbolos[ind_tmp].tipo,"VAR"))
+ 			strcpy(tabla_simbolos[ind_tmp].tipo,"VAR_INT");
+ 		else
+			printf(" %s NO es variable porque tiene tipo %s\n",tabla_simbolos[ind_tmp].nombre,tabla_simbolos[ind_tmp].tipo);
+
+	}
+if (tipo_a_modificar==2)
+	{
+	if((b = tabla_simbolos[ind_tmp].posicion) != -1)
+ 		if (!strcmp(tabla_simbolos[ind_tmp].tipo,"VAR"))
+ 			strcpy(tabla_simbolos[ind_tmp].tipo,"VAR_FLOAT");
+ 		else
+			printf(" %s NO es variable porque tiene tipo %s\n",tabla_simbolos[ind_tmp].nombre,tabla_simbolos[ind_tmp].tipo);
+
+	}
+if (tipo_a_modificar==3)
+	{
+	if((b = tabla_simbolos[ind_tmp].posicion) != -1)
+ 		if (!strcmp(tabla_simbolos[ind_tmp].tipo,"VAR"))
+ 			strcpy(tabla_simbolos[ind_tmp].tipo,"VAR_STRING");
+ 		else
+			printf(" %s NO es variable porque tiene tipo %s\n",tabla_simbolos[ind_tmp].nombre,tabla_simbolos[ind_tmp].tipo);
+
+	}
+}

@@ -1,12 +1,3 @@
-decvar									
-a,b:int									
-c,d1:str								
-e1,f_2,g3:flot							
-h,a:str									
-enddec		
 main									
-if (a<b) {c:=1*d}
-aa:=10
-if (x<y) {z:=1*h}
-bb:=10
+if (a<b&&c>d) {aa:=10}
 end										
