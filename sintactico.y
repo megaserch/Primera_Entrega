@@ -34,7 +34,7 @@ int longitud;
 struct lifo
 {
 	int elm; /*variable que coniene el elmento de tipo entero*/
-	char tipo_salto[3];
+	char tipo_salto[31];
 	int tipo_de_nexo;
 	struct lifo *nxt; /*nodo que apunta al siguiente en la pila*/
 };
@@ -57,9 +57,9 @@ pila pila_var;
 struct lista_tercetos
 {
     int numero_de_terceto;
-    char a[20];
-    char b[20];
-    char c[20];
+    char a[31];
+    char b[31];
+    char c[31];
     char cad[200];
     struct lista_tercetos *sig;
 };
@@ -114,6 +114,7 @@ int Condicion_ind=0;
 int Programa_ind=0;
 int Asignacion_ind=0;
 int lista_ind=0;
+int lista_ind_mult=0;
 int IF_ind=0;
 int WHILE_ind=0;
 int BETWEEN_ind=0;
@@ -132,6 +133,8 @@ char Comparador_id[3];
 
 int pila_de_if=0;
 int tipo_procesando=0;
+int es_multiple=0;
+int es_not=0;
 
 %}
 
@@ -283,21 +286,50 @@ cuerpo_if:
 asig:
 	lista_var OP_ASIG expresion
 					{
-					Asignacion_ind=crear_terceto(TERCETO_CON_TERCETOS,Asignacion_ind,"=",(char*)lista_ind,(char*)Expresion_ind);
+						while(es_multiple!=0)
+						{
+
+							lista_ind=crear_terceto(TERCETO_SIMPLE_VARIABLE,lista_ind,pila_var->tipo_salto,"_","_");
+							Asignacion_ind=crear_terceto(TERCETO_CON_TERCETOS,Asignacion_ind,"=",(char*)lista_ind,(char*)Expresion_ind);
+							pila_var=pop(pila_var);
+							es_multiple--;
+						}
+						/*es_multiple=0;*/
+					/*Asignacion_ind=crear_terceto(TERCETO_ASIG_COMPLETA,lista_ind,(char*)Expresion_ind,"_","_");*/
+					/*Asignacion_ind=crear_terceto(TERCETO_CON_TERCETOS,Asignacion_ind,"=",(char*)lista_ind,(char*)Expresion_ind);*/
 					
 						/*printf("\n\nterceto con variable %d\n\n",pila_var->elm);
 						pila_var=pop(pila_var);
 						crear_terceto(TERCETO_ASIG_COMPLETA,0,$1,"_","_");*/
-					
+					/*aca desapilo y meto expresion en el medio*/
 					}
 lista_var:
 	lista_var OP_ASIG VAR {/*Termino_ind=crear_terceto(0,0,"*",(char*)Termino_ind,(char*)Factor_ind);*/
-					/*Termino_ind=crear_terceto(TERCETO_ASIG_RESERVA,0,$3,"_","_");
-					pila_var=push(pila_var,lista_ind,"=",0);*/
+					/*Termino_ind=crear_terceto(TERCETO_ASIG_RESERVA,0,$3,"_","_");*/
+					/*ESTO VA COMO PIÑA
+					es_multiple=1;
+					lista_ind=crear_terceto(TERCETO_SIMPLE_VARIABLE,lista_ind,$3,"_","_");
+					lista_ind_mult=crear_terceto(TERCETO_SIMPLE_VARIABLE,lista_ind,"V.A.","_","_");
+					Asignacion_ind=crear_terceto(TERCETO_CON_TERCETOS,Asignacion_ind,"=",(char*)lista_ind,(char*)lista_ind_mult);
+					ESTO VA COMO PIÑA */
+					pila_var=push(pila_var,lista_ind,$3,0);
+					es_multiple++;
+					/*pila_var=push(pila_var,lista_ind,"=",0);*/
+					/*aca de guardan las variables*/
 					};
 lista_var:
-	VAR {
+	VAR {/*PONER ACA RESERVA DE ESPACIO PARA LA EXPRESION*/
+		/* ESTO VA COMO PIÑA
 		lista_ind=crear_terceto(TERCETO_SIMPLE_VARIABLE,lista_ind,"V.A.","_","_");
+		lista_ind_mult=crear_terceto(TERCETO_ASIG_RESERVA,lista_ind,"V.A.","_","_");
+		Asignacion_ind=crear_terceto(TERCETO_CON_TERCETOS,Asignacion_ind,"=",(char*)lista_ind,(char*)lista_ind_mult);
+		lista_ind=crear_terceto(TERCETO_SIMPLE_VARIABLE,lista_ind,$1,"_","_");
+		lista_ind_mult=crear_terceto(TERCETO_SIMPLE_VARIABLE,lista_ind,"V.A.","_","_");
+		Asignacion_ind=crear_terceto(TERCETO_CON_TERCETOS,Asignacion_ind,"=",(char*)lista_ind,(char*)lista_ind_mult);
+		ESTo VA COMO PIÑA */
+		/*lista_ind=crear_terceto(TERCETO_ASIG_COMPLETA,lista_ind,"V.A.","_","_");*/
+		pila_var=push(pila_var,lista_ind,$1,0);
+		es_multiple++;
 		};
 
 entrada:
@@ -346,12 +378,22 @@ cond_mult:
 									/*Condicion_ind=crear_terceto(TERCETO_IF_COMPLETA,Comparador_ind,$3,"_","_");*/};
 
 cond_mult:
-	PR_NOT cond_simple{$$=$2;};
+	PR_NOT cond_simple{$$=$2;
+						es_not=1;
+						printf("\n\n\nES UNA NOT!!!\n\n\n");};
 cond_simple:
 	expresion_izq comparador expresion_der
 						{
 							Condicion_ind=crear_terceto(TERCETO_CON_TERCETOS,Comparador_ind,"CMP",(char*)Expresion_izq_ind,(char*)Expresion_der_ind);
-							Condicion_ind=crear_terceto(TERCETO_IF_RESERVA,Comparador_ind,Comparador_id,"_","_");
+							if (es_not==0)
+							{
+							Condicion_ind=crear_terceto(TERCETO_IF_RESERVA,Comparador_ind,Comparador_id,"_","D");
+							}
+							else
+							{
+							Condicion_ind=crear_terceto(TERCETO_IF_RESERVA,Comparador_ind,Comparador_id,"_","N");
+							es_not=0;
+							}
 						}
 cond_simple:
 	entre;
@@ -405,7 +447,8 @@ termino:
 factor:
 	VAR     	{Factor_ind=crear_terceto(TERCETO_SIMPLE_VARIABLE,Factor_ind,$1,"_","_");}
 factor:
-	constante	{Factor_ind=crear_terceto(TERCETO_SIMPLE_CONSTANTE,Factor_ind,$1,"_","_");};
+	constante	{printf("\n\nACA TA\n\n");
+		Factor_ind=crear_terceto(TERCETO_SIMPLE_CONSTANTE,Factor_ind,$1,"_","_");};
 factor:	
 	PR_AP expresion PR_CP {	$$=$2;	Factor_ind=Expresion_ind;};
 	
@@ -555,15 +598,18 @@ case TERCETO_WRITE_CTE:
 	break;
 case TERCETO_ASIG_RESERVA:
 	printf("guardando v.a. %s\n",a);	
+	printf("\n\nguardando con push\n\n");
 	pila_tercetos=push(pila_tercetos,Pos_indice-1,a,0);
-	Pos_indice--;
+	/*Pos_indice--;*/
 	break;
 case TERCETO_ASIG_COMPLETA:
 	printf("guardando variable %s, en pos%d\n",a,pila_tercetos->elm+1);
 
 		terceto_a_agregar->numero_de_terceto=pila_tercetos->elm+1;
-		sprintf(terceto_a_agregar->cad, "[%d] (%s,%d,_)\n",pila_tercetos->elm+1,pila_tercetos->tipo_salto,Pos_indice+1);
+		sprintf(terceto_a_agregar->cad, "[%d] (%s,_,_)\n",pila_tercetos->elm+1,a);
+		/*sprintf(terceto_a_agregar->cad, "[%d] (%s,_,_)\n",,pila_tercetos->tipo_salto,Pos_indice+1);*/
 		insertar_terc(terceto_a_agregar);
+		printf("\n\nsacando con pop\n\n");
 		pila_tercetos=pop(pila_tercetos);
 		Pos_indice--;
 	/*pila_tercetos=push(pila_tercetos,Pos_indice-1,a,0);*/
@@ -571,8 +617,13 @@ case TERCETO_ASIG_COMPLETA:
 	break;
 
 case TERCETO_IF_RESERVA:
-printf("valor del argumento %s\n",a);
+	/*printf("valor del argumento %s\n",a);*/
+
+	if (strcmp(c,"N"))
+		invertir_cmp(a);
+	/*printf("valor del argumento %s\n",a);*/
 	pila_tercetos=push(pila_tercetos,Pos_indice-1,a,0);
+	
 	printf("guardando if de terceto %d\n",Pos_indice);
 	break;
 case TERCETO_WHILE_RESERVA:
