@@ -177,7 +177,6 @@ if(*p != '\0')
 		printf("SINTAX ERROR: STRING EXCEDE MAXIMO DE 30 CARACTERES (%s)\n", texto);    
 		return 0;
 	}
-	printf("texto\n%s\n\n",yytext);
 return 1;
 }
 
