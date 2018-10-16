@@ -123,6 +123,7 @@ int Expresion_izq_ind=0;
 int Expresion_der_ind=0;
 int Expresion_min_ind=0;
 int Expresion_max_ind=0;
+int Var_between_ind=0;
 	
 int const_entera;
 int const_entera1;
@@ -174,7 +175,7 @@ int es_not=0;
 %token PR_PYC
 %token PR_DOSP
 %token PR_COMA
-%token PR_NOT
+%token <str> PR_NOT
 %token PR_AND
 %token PR_OR
 %token PR_AP
@@ -366,9 +367,11 @@ tipo:
 			};
 
 condicion:
-	cond_simple;
-condicion:
 	cond_mult;
+
+condicion:
+	cond_simple;
+
 cond_mult:
 	cond_simple PR_AND cond_simple {cargar_nexo(pila_tercetos,1);}
 	/*{Condicion_ind=crear_terceto(TERCETO_IF_COMPLETA,Comparador_ind,$3,"_","_");};*/
@@ -378,12 +381,15 @@ cond_mult:
 									/*Condicion_ind=crear_terceto(TERCETO_IF_COMPLETA,Comparador_ind,$3,"_","_");*/};
 
 cond_mult:
-	PR_NOT cond_simple{$$=$2;
-						es_not=1;
-						printf("\n\n\nES UNA NOT!!!\n\n\n");};
+	PR_NOT { 
+			es_not=1;
+			printf("\n\n\nES UNA NOT!!!\n\n\n");
+			} cond_simple;
+
 cond_simple:
 	expresion_izq comparador expresion_der
-						{
+						{ $$=$1;
+							printf("\n\n\nEntro???\n\n\n");
 							Condicion_ind=crear_terceto(TERCETO_CON_TERCETOS,Comparador_ind,"CMP",(char*)Expresion_izq_ind,(char*)Expresion_der_ind);
 							if (es_not==0)
 							{
@@ -460,10 +466,32 @@ constante:
 	CONST_FLOT	{}
 
 entre:
-	BETWEEN PR_AP VAR PR_COMA PR_AC expresion_min PR_PYC expresion_max PR_CC PR_CP
+	BETWEEN PR_AP VAR {Var_between_ind=crear_terceto(TERCETO_SIMPLE_VARIABLE,Factor_ind,$3,"_","_");} PR_COMA PR_AC
+
+			expresion_min PR_PYC
+				{
+					strcpy(Comparador_id,"JGE");
+					Condicion_ind=crear_terceto(TERCETO_CON_TERCETOS,Comparador_ind,"CMP",(char*)Var_between_ind,(char*)$7);
+					Condicion_ind=crear_terceto(TERCETO_IF_RESERVA,Comparador_ind,Comparador_id,"_","D");
+					printf("hola");
+					/*Termino_ind=crear_terceto(TERCETO_CON_TERCETOS,Termino_ind,"*",(char*)Var_between_ind,(char*)$7);*/
+				}
+			expresion_max PR_CC PR_CP
 				{	
-					printf("\n\nbetween (%s,[%d;%d])\n\n",$3,(char*)$6,(char*)$8);
+					Condicion_ind=crear_terceto(TERCETO_IF_COMPLETA,Comparador_ind,$3,"_","_");
+
+					Condicion_ind=crear_terceto(TERCETO_CON_TERCETOS,Comparador_ind,"CMP",(char*)Var_between_ind,(char*)$10);
+					strcpy(Comparador_id,"JLE");
+					Condicion_ind=crear_terceto(TERCETO_IF_RESERVA,Comparador_ind,Comparador_id,"_","D");
+
+					/*Factor_ind=crear_terceto(TERCETO_SIMPLE_VARIABLE,Factor_ind,$3,"_","_");*/
+					//Termino_ind=crear_terceto(TERCETO_CON_TERCETOS,Termino_ind,"*",(char*)Var_between_ind,(char*)$10);
+					//Condicion_ind=crear_terceto(TERCETO_BETWEEN_RESERVA,Comparador_ind,"CMP",$3,(char*)$6);
+					//Condicion_ind=crear_terceto(TERCETO_BETWEEN_RESERVA,Comparador_ind,$3,(char*)Var_between_ind,(char*)Expresion_min_ind);
+					/*Condicion_ind=crear_terceto(TERCETO_IF_RESERVA,Comparador_ind,"JL","_","_");*/
+					printf("\n\nbetween (%s,[%d;%d])\n\n",$3,(char*)$7,(char*)$10);
 					printf(" Inicia BETWEEN\n");
+				
 				}
 
 %%
@@ -616,12 +644,30 @@ case TERCETO_ASIG_COMPLETA:
 
 	break;
 
+case TERCETO_BETWEEN_RESERVA:
+	/*terceto_a_agregar->numero_de_terceto=Pos_indice;
+	sprintf(terceto_a_agregar->cad, "[%d] (%s,[%s],[%d])\n",Pos_indice,a,b,c);
+	insertar_terc(terceto_a_agregar);*/
+	printf("[%d] (%s,_,_)\n",Pos_indice,a);
+	Pos_indice++;
+	printf("[%d] (%d,_,_)\n",Pos_indice,b);
+	Pos_indice++;
+	printf("[%d] (CMP,[%d],[%d])\n",Pos_indice,Pos_indice-1,Pos_indice-2);
+	Pos_indice++;
+	printf("[%d] (JGE,apilar,_)\n",Pos_indice);
+	Pos_indice++;
+	//printf("[%d] (%s,[%s],[%d])\n",Pos_indice,a,b,c);
+	//printf("[%d] (%s,[%s],[%d])\n",Pos_indice,a,b,c);
+	//printf("[%d] (%s,[%s],[%d])\n",Pos_indice,a,b,c);
+
+
+	break;
 case TERCETO_IF_RESERVA:
-	/*printf("valor del argumento %s\n",a);*/
+	printf("valor del argumento antes de not %s\n",a);
 
 	if (strcmp(c,"N"))
 		invertir_cmp(a);
-	/*printf("valor del argumento %s\n",a);*/
+	printf("valor del argumento despues de not %s\n",a);
 	pila_tercetos=push(pila_tercetos,Pos_indice-1,a,0);
 	
 	printf("guardando if de terceto %d\n",Pos_indice);
